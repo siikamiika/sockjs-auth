@@ -16,21 +16,24 @@
       function connect() {
         disconnect();
 
-        var transports = $('#protocols input:checked').map(function(){
-            return $(this).attr('id');
-        }).get();
-
-        conn = new SockJS('http://' + window.location.host + '/chat', transports);
+        conn = new SockJS('http://' + window.location.host + '/chat', 'websocket');
 
         log('Connecting...');
 
         conn.onopen = function() {
-          log('Connected.');
+          nick = $('#nick').val();
+          conn.send('{"nick": "'+nick+'", "action": "join"}');
           update_ui();
         };
 
         conn.onmessage = function(e) {
-          log(e.data);
+          var recv = jQuery.parseJSON(e.data);
+          if (recv['connected'])
+            log('Connected');
+          else if (recv['nick'] && recv['body'])
+            log('<font color="blue">'+recv["nick"]+':</font> '+recv["body"])
+          else if (recv['nick'] && recv['action'])
+            log(recv['nick']+' '+recv['action']+'ed')
         };
 
         conn.onclose = function() {
@@ -76,8 +79,8 @@
 
       $('form').submit(function() {
         var text = $('#text').val();
-        log('Sending: ' + text);
-        conn.send(text);
+        log('<font color="red">'+$('#nick').val()+':</font> '+text);
+        conn.send('{"body": "'+text+'"}');
         $('#text').val('').focus();
         return false;
       });
@@ -85,40 +88,6 @@
 </script>
 </head>
 <body>
-<h3>Chat!</h3>
-<div id="protocols" style="float: right">
-  <ul>
-    <li>
-      <input id="websocket" type="checkbox" value="websocket" checked="checked"></input>
-      <label for="websocket">websocket</label>
-    </li>
-    <li>
-      <input id="xhr-streaming" type="checkbox" value="xhr-streaming" checked="checked"></input>
-      <label for="xhr-streaming">xhr-streaming</label>
-    </li>
-    <li>
-      <input id="iframe-eventsource" type="checkbox" value="iframe-eventsource" checked="checked"></input>
-      <label for="iframe-eventsource">iframe-eventsource</label>
-    </li>
-    <li>
-      <input id="iframe-htmlfile" type="checkbox" value="iframe-htmlfile" checked="checked"></input>
-      <label for="iframe-htmlfile">iframe-htmlfile</label>
-    </li>
-    <li>
-      <input id="xhr-polling" type="checkbox" value="xhr-polling" checked="checked"></input>
-      <label for="xhr-polling">xhr-polling</label>
-    </li>
-    <li>
-      <input id="iframe-xhr-polling" type="checkbox" value="iframe-xhr-polling" checked="checked"></input>
-      <label for="iframe-xhr-polling">iframe-xhr-polling</label>
-    </li>
-    <li>
-      <input id="jsonp-polling" type="checkbox" value="jsonp-polling" checked="checked"></input>
-      <label for="jsonp-polling">jsonp-polling</label>
-    </li>
-  </ul>
-</div>
-
 <div>
   <a id="connect" href="#">Connect</a>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
 </div>
@@ -126,7 +95,8 @@
 </div>
 <form id="chatform">
   <input id="text" type="text" />
-  <input type="submit" />
+  <input type="submit" />nick: 
+  <input id="nick" type="text" />
 </form>
 </body>
 </html>
