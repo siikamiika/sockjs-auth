@@ -38,7 +38,7 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
         if not self.auth:
             # Authenticate
             try:
-                if message['action'] == 'join':
+                if message['action'] == 'join' and message['pass'] == 'testing':
                     self.nick = message['nick']
                     self.auth = True
                     self.broadcast(self.participants, json.dumps(message))
