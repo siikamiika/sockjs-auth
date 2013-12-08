@@ -3,6 +3,7 @@ import tornado.ioloop
 import tornado.web
 import sockjs.tornado
 import json
+import datetime
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -29,6 +30,7 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
         self_set = set()
         self_set.add(self)
         try:
+            print(message)
             message = json.loads(message)
         except:
             # :gconf:
@@ -51,18 +53,20 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
                     print('auth@{} fail'.format(self.info.ip))
         elif message.get('body'):
             # Broadcast message
-            tmp = set(self.participants)
-            tmp.remove(self)
-            msg = {'nick': self.nick, 'body': message.get('body')}
-            self.broadcast(tmp, json.dumps(msg))
+            timestr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            msg = {'time': timestr, 'nick': self.nick, 'body': message.get('body')}
+            self.broadcast(self.participants, json.dumps(msg))
         else:
             self.broadcast(self_set, 'not a valid message')
 
     def on_close(self):
         # Remove client from the clients list and broadcast leave message
-        self.participants.remove(self)
-        partnotify = {'nick': self.nick, 'action': 'part'}
-        self.broadcast(self.participants, json.dumps(partnotify))
+        try:
+            self.participants.remove(self)
+            partnotify = {'nick': self.nick, 'action': 'part'}
+            self.broadcast(self.participants, json.dumps(partnotify))
+        except KeyError:
+            pass
 
 
 if __name__ == "__main__":

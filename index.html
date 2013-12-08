@@ -6,6 +6,9 @@
       color: #75715E;
       background-color: #272822;
     }
+    #connect {
+      color: #75715E;
+    }
     .valko {
       color: white;
     }
@@ -13,6 +16,26 @@
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
   <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
   <script>
+    // https://github.com/janl/mustache.js/blob/master/mustache.js
+    var entityMap = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': '&quot;',
+      "'": '&#39;',
+      "/": '&#x2F;'
+    };
+    function escapeHtml(string) {
+      if (document.getElementById('escapehtml').checked) {
+        return String(string).replace(/[&<>"'\/]/g, function (s) {
+          return entityMap[s];
+        });
+      }
+      else {
+        return string;
+      }
+    }
+    //
     $(function() {
       var conn = null;
 
@@ -38,10 +61,10 @@
 
         conn.onmessage = function(e) {
           var recv = jQuery.parseJSON(e.data);
-          if (recv['connected'])
-            log('Connected');
-          else if (recv['nick'] && recv['body'])
-            log('<span style="color: #66D9EF;">'+recv["nick"]+':</span> <span class="valko">'+recv["body"]+'</span>')
+          if (recv['connected'] == true)
+            log('Connected.');
+          else if (recv['time'] && recv['nick'] && recv['body'])
+            log(recv['time']+'<span style="color: #66D9EF;">'+escapeHtml(recv["nick"])+':</span> <span class="valko">'+escapeHtml(recv["body"])+'</span>')
           else if (recv['nick'] && recv['action'])
             log(recv['nick']+' '+recv['action']+'ed')
         };
@@ -71,7 +94,7 @@
           $('#status').text('disconnected');
           $('#connect').text('Connect');
         } else {
-          $('#status').text('connected (' + conn.protocol + ')');
+          $('#status').text('connected');
           $('#connect').text('Disconnect');
         }
       }
@@ -89,26 +112,26 @@
 
       $('form').submit(function() {
         var text = $('#text').val();
-        log('<span style="color: #F92672;">'+$('#nick').val()+':</span> <span class="valko">'+text+'</span>');
-        conn.send('{"body": "'+text+'"}');
+        //log('<span style="color: #F92672;">'+$('#nick').val()+':</span> <span class="valko">'+text+'</span>');
+        conn.send('{"body": '+JSON.stringify(text)+'}');
         $('#text').val('').focus();
         return false;
       });
     });
-</script>
+  </script>
 </head>
 <body>
-<div>
-  <a id="connect" href="#">Connect</a>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
-</div>
-<div id="log" style="width: 60em; height: 20em; overflow:auto; border: 1px solid black">
-</div>
-<form id="chatform">
-  <input id="text" type="text" />
-  <input type="submit" />nick:
-  <input id="nick" type="text" />pass:
-  <input id="pass" type="password" />
-</form>
-</div>
+  <div>
+    <a id="connect" href="#">Connect</a>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
+  </div>
+  <div id="log" style="width: 60em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
+  </div>
+  <form id="chatform">
+    <input id="text" type="text" />
+    <input type="submit" />
+    nick:<input id="nick" type="text" />
+    pass:<input id="pass" type="password" />
+    show html as text?<input type="checkbox" id="escapehtml" checked>
+  </form>
 </body>
 </html>
