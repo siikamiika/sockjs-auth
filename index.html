@@ -75,16 +75,12 @@
           else if (recv['time'] && recv['nick'] && recv['body']){
             var timestamp = recv['time'];
             var timestring = new Date(timestamp*1000).toLocaleTimeString() + ' ';
-            if ($('#nick').val() == recv['nick']) {
-              nickcolor = '#F92672';
-            }
-            else if (recv['nick'] in nickcolors){
+            if (nickcolors[recv['nick']]) {
               nickcolor = nickcolors[recv['nick']]
             }
             else {
-              // http://stackoverflow.com/questions/1484506/random-color-generator-in-javascript
-              nickcolor = '#'+Math.random().toString(16).substring(2,8);
-              nickcolors[recv['nick']] = nickcolor;
+              // this should never happen
+              nickcolor = 'white';
             }
             log(timestring+
               '<span style="color: '+nickcolor+';">'+
@@ -97,13 +93,27 @@
             conn.send('{"action": "getroster"}');
           }
           else if (recv['roster']){
-            roster('participants:<br>'+recv['roster'].join('<br>'));
+            for (nickidx in recv['roster']){
+              if (recv['roster'][nickidx] in nickcolors == false && $('#nick').val() != recv['nick']){
+                // http://stackoverflow.com/questions/1484506/random-color-generator-in-javascript
+                nickcolors[recv['roster'][nickidx]] = '#'+Math.random().toString(16).substring(2,8);
+              }
+            }
+            nickcolors[$('#nick').val()] = '#F92672';
+            var participants = '';
+            for (nickidx in recv['roster']){
+              participants += '<span style="color: '+
+              nickcolors[recv['roster'][nickidx]]+';">'+
+              recv['roster'][nickidx]+'</span><br>';
+            }
+            roster('<span style="color: #66D9EF; background-color: rgba(255,255,255,0.3);">participants:</span><br>'+participants);
           }
         }
 
         conn.onclose = function() {
           log('Disconnected.');
           conn = null;
+          roster('');
           update_ui();
         };
       }
