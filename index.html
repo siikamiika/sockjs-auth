@@ -45,6 +45,12 @@
         control.scrollTop(control.scrollTop() + 1000);
       }
 
+      function roster(msg) {
+        var control = $('#roster');
+        control.html(msg);
+        control.scrollTop(control.scrollTop() + 1000);
+      }
+
       function connect() {
         disconnect();
 
@@ -54,8 +60,9 @@
 
         conn.onopen = function() {
           nick = $('#nick').val();
-          pass = $('#pass').val();
-          conn.send('{"nick": "'+nick+'","pass": "'+pass+'", "action": "join"}');
+          passwd = $('#passwd').val();
+          conn.send('{"nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
+          conn.send('{"action": "getroster"}');
           update_ui();
         };
 
@@ -63,10 +70,19 @@
           var recv = jQuery.parseJSON(e.data);
           if (recv['connected'] == true)
             log('Connected.');
-          else if (recv['time'] && recv['nick'] && recv['body'])
-            log(recv['time']+'<span style="color: #66D9EF;">'+escapeHtml(recv["nick"])+':</span> <span class="valko">'+escapeHtml(recv["body"])+'</span>')
-          else if (recv['nick'] && recv['action'])
-            log(recv['nick']+' '+recv['action']+'ed')
+          else if (recv['time'] && recv['nick'] && recv['body']){
+            var timestamp = recv['time'];
+            var timestring = new Date(timestamp*1000).toLocaleTimeString() + ' ';
+            log(timestring+'<span style="color: #66D9EF;">'+escapeHtml(recv["nick"])+':</span> <span class="valko">'+escapeHtml(recv["body"])+'</span>');
+          }
+          else if (recv['nick'] && recv['action']){
+            var timestring = new Date().toLocaleTimeString() + ' ';
+            log(timestring+recv['nick']+' '+recv['action']+'ed');
+            conn.send('{"action": "getroster"}');
+          }
+          else if (recv['roster']){
+            roster('participants:<br>'+recv['roster'].join('<br>'));
+          }
         };
 
         conn.onclose = function() {
@@ -92,10 +108,10 @@
 
         if (conn == null || conn.readyState != SockJS.OPEN) {
           $('#status').text('disconnected');
-          $('#connect').text('Connect');
+          $('#connect').html('Connect');
         } else {
           $('#status').text('connected');
-          $('#connect').text('Disconnect');
+          $('#connect').html('Disconnect');
         }
       }
 
@@ -110,7 +126,7 @@
         return false;
       });
 
-      $('form').submit(function() {
+      $('#chatform').submit(function() {
         var text = $('#text').val();
         //log('<span style="color: #F92672;">'+$('#nick').val()+':</span> <span class="valko">'+text+'</span>');
         conn.send('{"body": '+JSON.stringify(text)+'}');
@@ -121,17 +137,38 @@
   </script>
 </head>
 <body>
-  <div>
-    <a id="connect" href="#">Connect</a>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
-  </div>
-  <div id="log" style="width: 60em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
-  </div>
-  <form id="chatform">
-    <input id="text" type="text" />
-    <input type="submit" />
-    nick:<input id="nick" type="text" />
-    pass:<input id="pass" type="password" />
-    show html as text?<input type="checkbox" id="escapehtml" checked>
-  </form>
+  <table>
+    <tr>
+      <td>
+        <div>
+          <button type="button" id="connect">Connect</button>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
+          <form id="login">
+            <input id="nick" type="text" placeholder="nick" />
+            <input id="passwd" type="password" placeholder="password" />
+            show html as text?<input type="checkbox" id="escapehtml" checked>
+          </form>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div id="log" style="width: 60em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
+        </div>
+      </td>
+      <td>
+        <div id="roster" style="width: 10em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; word-wrap: break-word;">
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <div>
+          <form id="chatform" autocomplete="off">
+            <input id="text" type="text" />
+          </form>
+        </div>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

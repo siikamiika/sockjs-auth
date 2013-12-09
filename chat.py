@@ -3,6 +3,7 @@ import tornado.ioloop
 import tornado.web
 import sockjs.tornado
 import json
+import time
 import datetime
 
 
@@ -11,16 +12,74 @@ class IndexHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('index.html')
 
+class Message(object):
+    """Forms a JSON string from data"""
+    def __init__(self, message={}, verifiednick=None):
+        """Parse message"""
+        try:
+            self.message = json.loads(message)
+        except (ValueError, TypeError):
+            # Handle invalid JSON
+            self.message = {}
+        self.body = self.message.get('body')
+        self.passwd = self.message.get('passwd')
+        self.action = self.message.get('action')
+        if verifiednick is None:
+            self.nick = self.message.get('nick')
+        else:
+            self.nick = verifiednick
+        if self.action is not None:
+            if self.action == 'join':
+                self.message = {
+                'action': self.action,
+                'nick': self.nick,
+                'passwd': self.passwd
+                }
+            if self.action == 'getroster':
+                self.message = {'action': self.action}
+            self.type = 'control'
+        elif self.body is not None:
+            self.message = {
+            'nick': self.nick,
+            'body': self.body,
+            'time': time.time()
+            }
+            self.type = 'chat'
+        else:
+            self.type = None
+
+    def authorized(self, passwd):
+        """"""
+        if self.passwd == passwd:
+            return True
+        else:
+            return False
+
+    def connectnotify(self):
+        """"""
+        return json.dumps({"connected": True})
+
+    def partnotify(self):
+        """"""
+        return json.dumps({'nick': self.nick, 'action': 'part'})
+
+    def sendroster(self, roster):
+        """"""
+        return json.dumps({'roster': roster})
+
+    def send(self):
+        """"""
+        return json.dumps(self.message)
+
 
 class ChatConnection(sockjs.tornado.SockJSConnection):
     """Chat connection implementation"""
     participants = set()
 
     def on_open(self, info):
+        """"""
         self.info = info
         self.auth = False
-        #self.broadcast(self.participants, joininfo)
-        #self.participants.add(self)
 
     def on_message(self, message):
         """
@@ -29,42 +88,41 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
         """
         self_set = set()
         self_set.add(self)
-        try:
-            print(message)
-            message = json.loads(message)
-        except:
-            # :gconf:
-            self.broadcast(self_set, 'That doesn\'t taste like JSON')
-            return
 
         if not self.auth:
             # Authenticate
-            try:
-                if message['action'] == 'join' and message['pass'] == 'testing':
-                    self.nick = message['nick']
-                    self.auth = True
-                    self.broadcast(self.participants, json.dumps(message))
-                    self.participants.add(self)
-                    self.broadcast(self_set, '{"connected": true}')
-            except: # TODO: gottacatchemall
-                pass
-            finally:
-                if not self.auth:
-                    print('auth@{} fail'.format(self.info.ip))
-        elif message.get('body'):
-            # Broadcast message
-            timestr = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            msg = {'time': timestr, 'nick': self.nick, 'body': message.get('body')}
-            self.broadcast(self.participants, json.dumps(msg))
+            msgobj = Message(message=message)
+            if msgobj.authorized('testing') and msgobj.nick is not None:
+                self.nick = msgobj.nick
+                for participant in self.participants:
+                    if participant.nick == self.nick:
+                        print('auth@{0} fail: nick collision ({1})'.format(self.info.ip, self.nick))
+                        return
+                print('auth@{} success'.format(self.info.ip))
+                self.auth = True
+                self.broadcast(self.participants, msgobj.send())
+                self.participants.add(self)
+                self.broadcast(self_set, Message().connectnotify())
+            else:
+                print('auth@{} fail: invalid password'.format(self.info.ip))
         else:
-            self.broadcast(self_set, 'not a valid message')
+            msgobj = Message(message=message, verifiednick=self.nick)
+            if msgobj.type == 'chat':
+                self.broadcast(self.participants, msgobj.send())
+            elif msgobj.type == 'control' and msgobj.action == 'getroster':
+                roster = []
+                for participant in self.participants:
+                    roster.append(participant.nick)
+                self.broadcast(self_set, Message().sendroster(roster))
+            else:
+                self.broadcast(self_set, 'not a valid message')
 
     def on_close(self):
-        # Remove client from the clients list and broadcast leave message
+        """"""
         try:
             self.participants.remove(self)
-            partnotify = {'nick': self.nick, 'action': 'part'}
-            self.broadcast(self.participants, json.dumps(partnotify))
+            self.broadcast(self.participants,
+                Message(verifiednick=self.nick).partnotify())
         except KeyError:
             pass
 
@@ -72,17 +130,9 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
 if __name__ == "__main__":
     import logging
     logging.getLogger().setLevel(logging.DEBUG)
-
-    # 1. Create chat router
     ChatRouter = sockjs.tornado.SockJSRouter(ChatConnection, '/chat')
-
-    # 2. Create Tornado application
     app = tornado.web.Application(
             [(r"/", IndexHandler)] + ChatRouter.urls
     )
-
-    # 3. Make Tornado app listen on port 8080
     app.listen(8000)
-
-    # 4. Start IOLoop
     tornado.ioloop.IOLoop.instance().start()
