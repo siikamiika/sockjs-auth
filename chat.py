@@ -110,9 +110,7 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
             if msgobj.type == 'chat':
                 self.broadcast(self.participants, msgobj.send())
             elif msgobj.type == 'control' and msgobj.action == 'getroster':
-                roster = []
-                for participant in self.participants:
-                    roster.append(participant.nick)
+                roster = [participant.nick for participant in self.participants]
                 self.broadcast(self_set, Message().sendroster(roster))
             else:
                 self.broadcast(self_set, 'not a valid message')

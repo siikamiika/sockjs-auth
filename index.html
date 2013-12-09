@@ -36,6 +36,8 @@
       }
     }
     //
+    var nickcolors = {};
+
     $(function() {
       var conn = null;
 
@@ -73,7 +75,21 @@
           else if (recv['time'] && recv['nick'] && recv['body']){
             var timestamp = recv['time'];
             var timestring = new Date(timestamp*1000).toLocaleTimeString() + ' ';
-            log(timestring+'<span style="color: #66D9EF;">'+escapeHtml(recv["nick"])+':</span> <span class="valko">'+escapeHtml(recv["body"])+'</span>');
+            if ($('#nick').val() == recv['nick']) {
+              nickcolor = '#F92672';
+            }
+            else if (recv['nick'] in nickcolors){
+              nickcolor = nickcolors[recv['nick']]
+            }
+            else {
+              // http://stackoverflow.com/questions/1484506/random-color-generator-in-javascript
+              nickcolor = '#'+Math.random().toString(16).substring(2,8);
+              nickcolors[recv['nick']] = nickcolor;
+            }
+            log(timestring+
+              '<span style="color: '+nickcolor+';">'+
+              escapeHtml(recv["nick"])+':</span> <span class="valko">'+
+              escapeHtml(recv["body"])+'</span>');
           }
           else if (recv['nick'] && recv['action']){
             var timestring = new Date().toLocaleTimeString() + ' ';
@@ -83,7 +99,7 @@
           else if (recv['roster']){
             roster('participants:<br>'+recv['roster'].join('<br>'));
           }
-        };
+        }
 
         conn.onclose = function() {
           log('Disconnected.');
