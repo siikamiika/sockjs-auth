@@ -2,21 +2,58 @@
 <html>
 <head>
   <title>#siika</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
   <style type="text/css">
     body {
       color: #75715E;
       background-color: #272822;
     }
-    #connect {
-      color: #75715E;
+    #butt {
+      font-size: 110%;
     }
     .valko {
       color: white;
+    }
+    .link {
+      color: #66D9EF;
+    }
+    pre {
+      white-space: pre-wrap;
+      margin: 0;
+      padding: 0;
+    }
+    #log {
+      position: absolute;
+      height: 60%;
+      width: 80%;
+      left: 0;
+      bottom: 1;
+      word-wrap: break-word;
+      overflow:auto;
+      border: 1px solid black;
+    }
+    #roster {
+      position: absolute;
+      height: 60%;
+      width: 19%;
+      right: 0;
+      word-wrap: break-word;
+      overflow:auto;
+      border: 1px solid black;
+      word-wrap: break-word;
+    }
+    #text {
+      position: absolute;
+      bottom: 0;
+      width: 80%;
+      height: 2em;
     }
   </style>
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
   <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
   <script>
+    $("#log").css('max-height', $(window).height());
+    $("#log").css('max-width', $(window).width());
     // https://github.com/janl/mustache.js/blob/master/mustache.js
     var entityMap = {
       "&": "&amp;",
@@ -27,14 +64,24 @@
       "/": '&#x2F;'
     }
     function escapeHtml(string) {
-      if (document.getElementById('escapehtml').checked) {
-        return String(string).replace(/[&<>"'\/]/g, function (s) {
-          return entityMap[s];
-        });
-      }
-      else {
-        return string;
-      }
+      var escaped = [];
+      var words = string.split(' ');
+      words.forEach(function(word){
+        if (/((^https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig.test(word)) {
+          escaped.push(word.replace(/((https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig,
+            '<a href="$1" target="_blank" class="link">$1</a>'));
+        }
+        else if (document.getElementById('escapehtml').checked) {
+          escaped.push(String(word).replace(/[&<>"'\/]/g, function (s) {
+            return entityMap[s];
+          }));
+        }
+        else {
+          escaped.push(word);
+        }
+      });
+
+      return escaped.join(' ');
     }
     //
     var nickcolors = {};
@@ -44,7 +91,7 @@
 
       function log(msg) {
         var control = $('#log');
-        control.html(control.html() + msg + '<br/>');
+        control.html(control.html() + '<pre>'+msg+'</pre>');
         control.scrollTop(control.scrollTop() + 1000);
       }
 
@@ -107,7 +154,7 @@
               nickcolors[recv['roster'][nickidx]]+';">'+
               recv['roster'][nickidx]+'</span><br>';
             }
-            roster('<span style="color: #66D9EF; background-color: rgba(255,255,255,0.3);">participants:</span><br>'+participants);
+            roster('<pre><span style="color: #66D9EF; background-color: rgba(255,255,255,0.3);">participants:</span><br>'+participants+'</pre>');
           }
         }
 
@@ -135,17 +182,16 @@
 
         if (conn == null || conn.readyState != SockJS.OPEN) {
           $('#status').text('disconnected');
-          $('#connect').html('Connect');
         } else {
           $('#status').text('connected');
-          $('#connect').html('Disconnect');
         }
       }
 
-      $('#connect').click(function() {
+      $('#login').submit(function() {
         if (conn == null) {
           connect();
-        } else {
+        }
+        else {
           disconnect();
         }
 
@@ -163,38 +209,23 @@
   </script>
 </head>
 <body>
-  <table>
-    <tr>
-      <td>
-        <div>
-          <button type="button" id="connect">Connect</button>&nbsp;|&nbsp;Status: <span id="status">disconnected</span>
-          <form id="login">
-            <input id="nick" type="text" placeholder="nick" />
-            <input id="passwd" type="password" placeholder="password" />
-            show html as text?<input type="checkbox" id="escapehtml" checked>
-          </form>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <div id="log" style="width: 50em; height: 25em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
-        </div>
-      </td>
-      <td>
-        <div id="roster" style="width: 10em; height: 25em; word-wrap: break-word; overflow:auto; border: 1px solid black; word-wrap: break-word;">
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td>
-        <div>
-          <form id="chatform" autocomplete="off">
-            <input id="text" type="text" style="width: 50em; height: 2em;">
-          </form>
-        </div>
-      </td>
-    </tr>
-  </table>
+  <div>
+    Status: <span id="status">disconnected</span>
+    | escape html?<input type="checkbox" id="escapehtml" checked>
+    <form id="login">
+      <input id="nick" type="text" placeholder="nick" />
+      <input id="passwd" type="password" placeholder="password" />
+      <input id="butt" type="submit" value="→">
+    </form>
+  </div>
+  <div id="log">
+  </div>
+  <div id="roster">
+  </div>
+  <div>
+    <form id="chatform" autocomplete="off">
+      <input id="text" type="text" placeholder=":-D">
+    </form>
+  </div>
 </body>
 </html>
