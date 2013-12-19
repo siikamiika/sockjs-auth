@@ -78,7 +78,7 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
 
     def on_open(self, info):
         """"""
-        self.info = info
+        self.ip = info.headers['X-Real-Ip']
         self.auth = False
 
     def on_message(self, message):
@@ -96,15 +96,16 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
                 self.nick = msgobj.nick
                 for participant in self.participants:
                     if participant.nick == self.nick:
-                        print('auth@{0} fail: nick collision ({1})'.format(self.info.ip, self.nick))
+                        print('auth@{0} fail: nick collision ({1})'.format(
+                            self.ip, self.nick))
                         return
-                print('auth@{} success'.format(self.info.ip))
+                print('auth@{} success'.format(self.ip))
                 self.auth = True
                 self.broadcast(self.participants, msgobj.send())
                 self.participants.add(self)
                 self.broadcast(self_set, Message().connectnotify())
             else:
-                print('auth@{} fail: invalid password'.format(self.info.ip))
+                print('auth@{} fail: invalid password'.format(self.ip))
         else:
             msgobj = Message(message=message, verifiednick=self.nick)
             if msgobj.type == 'chat':
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
     ChatRouter = sockjs.tornado.SockJSRouter(ChatConnection, '/chat')
     app = tornado.web.Application(
-            [(r"/", IndexHandler)] + ChatRouter.urls
+        [(r"/chat/", IndexHandler)] + ChatRouter.urls
     )
-    app.listen(8000)
+    app.listen(9002)
     tornado.ioloop.IOLoop.instance().start()

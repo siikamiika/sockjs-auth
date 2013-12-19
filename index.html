@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <title>#siika</title>
   <style type="text/css">
     body {
       color: #75715E;
@@ -24,7 +25,7 @@
       '"': '&quot;',
       "'": '&#39;',
       "/": '&#x2F;'
-    };
+    }
     function escapeHtml(string) {
       if (document.getElementById('escapehtml').checked) {
         return String(string).replace(/[&<>"'\/]/g, function (s) {
@@ -66,7 +67,7 @@
           conn.send('{"nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
           conn.send('{"action": "getroster"}');
           update_ui();
-        };
+        }
 
         conn.onmessage = function(e) {
           var recv = jQuery.parseJSON(e.data);
@@ -115,7 +116,7 @@
           conn = null;
           roster('');
           update_ui();
-        };
+        }
       }
 
       function disconnect() {
@@ -154,7 +155,6 @@
 
       $('#chatform').submit(function() {
         var text = $('#text').val();
-        //log('<span style="color: #F92672;">'+$('#nick').val()+':</span> <span class="valko">'+text+'</span>');
         conn.send('{"body": '+JSON.stringify(text)+'}');
         $('#text').val('').focus();
         return false;
@@ -178,11 +178,11 @@
     </tr>
     <tr>
       <td>
-        <div id="log" style="width: 60em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
+        <div id="log" style="width: 50em; height: 25em; word-wrap: break-word; overflow:auto; border: 1px solid black; resize: both;">
         </div>
       </td>
       <td>
-        <div id="roster" style="width: 10em; height: 30em; word-wrap: break-word; overflow:auto; border: 1px solid black; word-wrap: break-word;">
+        <div id="roster" style="width: 10em; height: 25em; word-wrap: break-word; overflow:auto; border: 1px solid black; word-wrap: break-word;">
         </div>
       </td>
     </tr>
@@ -190,7 +190,7 @@
       <td>
         <div>
           <form id="chatform" autocomplete="off">
-            <input id="text" type="text" />
+            <input id="text" type="text" style="width: 50em; height: 2em;">
           </form>
         </div>
       </td>
