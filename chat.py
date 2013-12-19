@@ -108,8 +108,7 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
                 #self.backlog.append(msg)
                 self.participants.add(self)
                 self.broadcast(self_set, Message().connectnotify())
-            else:
-                print('auth@{} fail: invalid password'.format(self.ip))
+
         else:
             msgobj = Message(message=message, verifiednick=self.nick)
             if msgobj.type == 'chat':

@@ -105,7 +105,9 @@
           nick = $('#nick').val();
           passwd = $('#passwd').val();
           conn.send('{"nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
-          conn.send('{"action": "getbacklog"}');
+          if (document.getElementById('getbacklog').checked) {
+            conn.send('{"action": "getbacklog"}');
+          }
           conn.send('{"action": "getroster"}');
           update_ui();
         }
@@ -133,7 +135,7 @@
           }
           else if (recv['nick'] && recv['action']){
             var timestring = new Date().toLocaleTimeString() + ' ';
-            log(timestring+recv['nick']+' '+recv['action']+'ed');
+            log(timestring+escapeHtml(recv['nick'])+' '+escapeHtml(recv['action'])+'ed');
             conn.send('{"action": "getroster"}');
           }
           else if (recv['roster']){
@@ -148,7 +150,7 @@
             for (nickidx in recv['roster']){
               participants += '<span style="color: '+
               nickcolors[recv['roster'][nickidx]]+';">'+
-              recv['roster'][nickidx]+'</span><br>';
+              escapeHtml(recv['roster'][nickidx])+'</span><br>';
             }
             roster('<pre><span id="participants">participants:</span><br>'+participants+'</pre>');
           }
@@ -207,10 +209,13 @@
 <body>
   <div>
     Status: <span id="status">disconnected</span>
-    | escape html?<input type="checkbox" id="escapehtml" checked>
+    | escape html?
+    <input type="checkbox" id="escapehtml" checked>
+    get backlog?
+    <input type="checkbox" id="getbacklog" checked>
     <form id="login">
       <input id="nick" type="text" placeholder="nick" />
-      <input id="passwd" type="password" placeholder="password" />
+      <input id="passwd" type="password" placeholder="pw ('testing' TFN)" />
       <input id="butt" type="submit" value="→">
     </form>
   </div>
