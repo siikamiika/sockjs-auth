@@ -5,6 +5,7 @@ import sockjs.tornado
 import json
 import time
 import datetime
+from collections import deque
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -35,7 +36,7 @@ class Message(object):
                 'nick': self.nick,
                 'passwd': self.passwd
                 }
-            if self.action == 'getroster':
+            if self.action == ('getroster' or 'getbacklog'):
                 self.message = {'action': self.action}
             self.type = 'control'
         elif self.body is not None:
@@ -75,6 +76,7 @@ class Message(object):
 class ChatConnection(sockjs.tornado.SockJSConnection):
     """Chat connection implementation"""
     participants = set()
+    backlog = deque(maxlen=30)
 
     def on_open(self, info):
         """"""
@@ -101,7 +103,9 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
                         return
                 print('auth@{} success'.format(self.ip))
                 self.auth = True
-                self.broadcast(self.participants, msgobj.send())
+                msg = msgobj.send()
+                self.broadcast(self.participants, msg)
+                #self.backlog.append(msg)
                 self.participants.add(self)
                 self.broadcast(self_set, Message().connectnotify())
             else:
@@ -109,10 +113,16 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
         else:
             msgobj = Message(message=message, verifiednick=self.nick)
             if msgobj.type == 'chat':
-                self.broadcast(self.participants, msgobj.send())
-            elif msgobj.type == 'control' and msgobj.action == 'getroster':
-                roster = [participant.nick for participant in self.participants]
-                self.broadcast(self_set, Message().sendroster(roster))
+                msg = msgobj.send()
+                self.broadcast(self.participants, msg)
+                self.backlog.append(msg)
+            elif msgobj.type == 'control':
+                if msgobj.action == 'getroster':
+                    roster = [participant.nick for participant in self.participants]
+                    self.broadcast(self_set, Message().sendroster(roster))
+                if msgobj.action == 'getbacklog':
+                    for msg in self.backlog:
+                        self.broadcast(self_set, msg)
             else:
                 self.broadcast(self_set, 'not a valid message')
 
@@ -120,8 +130,9 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
         """"""
         try:
             self.participants.remove(self)
-            self.broadcast(self.participants,
-                Message(verifiednick=self.nick).partnotify())
+            msg = Message(verifiednick=self.nick).partnotify()
+            self.broadcast(self.participants, msg)
+            #self.backlog.append(msg)
         except KeyError:
             pass
 

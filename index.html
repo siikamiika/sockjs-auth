@@ -8,20 +8,15 @@
       color: #75715E;
       background-color: #272822;
     }
-    #butt {
-      font-size: 110%;
-    }
-    .valko {
-      color: white;
-    }
-    .link {
-      color: #66D9EF;
-    }
     pre {
       white-space: pre-wrap;
       margin: 0;
       padding: 0;
     }
+    .mbody {color: white;}
+    .link {color: #66D9EF;}
+    #butt {font-size: 110%;}
+    #participants {color: #66D9EF; background-color: rgba(255,255,255,0.3);}
     #log {
       position: absolute;
       height: 60%;
@@ -49,11 +44,9 @@
       height: 2em;
     }
   </style>
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-  <script src="http://cdn.sockjs.org/sockjs-0.3.min.js"></script>
+  <script src="/js/jquery.min.js"></script>
+  <script src="/js/sockjs-0.3.min.js"></script>
   <script>
-    $("#log").css('max-height', $(window).height());
-    $("#log").css('max-width', $(window).width());
     // https://github.com/janl/mustache.js/blob/master/mustache.js
     var entityMap = {
       "&": "&amp;",
@@ -92,7 +85,7 @@
       function log(msg) {
         var control = $('#log');
         control.html(control.html() + '<pre>'+msg+'</pre>');
-        control.scrollTop(control.scrollTop() + 1000);
+        control.scrollTop($('#log')[0].scrollHeight);
       }
 
       function roster(msg) {
@@ -112,6 +105,7 @@
           nick = $('#nick').val();
           passwd = $('#passwd').val();
           conn.send('{"nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
+          conn.send('{"action": "getbacklog"}');
           conn.send('{"action": "getroster"}');
           update_ui();
         }
@@ -128,11 +122,13 @@
             }
             else {
               // this should never happen
+              // ..apparently it does now when backlog is implemented
+              // everything went unexpected
               nickcolor = 'white';
             }
             log(timestring+
               '<span style="color: '+nickcolor+';">'+
-              escapeHtml(recv["nick"])+':</span> <span class="valko">'+
+              escapeHtml(recv["nick"])+':</span> <span class="mbody">'+
               escapeHtml(recv["body"])+'</span>');
           }
           else if (recv['nick'] && recv['action']){
@@ -154,7 +150,7 @@
               nickcolors[recv['roster'][nickidx]]+';">'+
               recv['roster'][nickidx]+'</span><br>';
             }
-            roster('<pre><span style="color: #66D9EF; background-color: rgba(255,255,255,0.3);">participants:</span><br>'+participants+'</pre>');
+            roster('<pre><span id="participants">participants:</span><br>'+participants+'</pre>');
           }
         }
 
