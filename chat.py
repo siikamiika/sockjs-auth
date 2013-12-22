@@ -24,6 +24,7 @@ class Message(object):
             self.message = {}
         self.body = self.message.get('body')
         self.passwd = self.message.get('passwd')
+        self.room = self.message.get('room')
         self.action = self.message.get('action')
         if verifiednick is None:
             self.nick = self.message.get('nick')
@@ -33,6 +34,7 @@ class Message(object):
             if self.action == 'join':
                 self.message = {
                 'action': self.action,
+                'room': self.room,
                 'nick': self.nick,
                 'passwd': self.passwd
                 }
@@ -75,8 +77,8 @@ class Message(object):
 
 class ChatConnection(sockjs.tornado.SockJSConnection):
     """Chat connection implementation"""
-    participants = set()
-    backlog = deque(maxlen=30)
+    participants = {}
+    backlog = {}
 
     def on_open(self, info):
         """"""
@@ -96,7 +98,12 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
             msgobj = Message(message=message)
             if msgobj.authorized('testing') and msgobj.nick is not None:
                 self.nick = msgobj.nick
-                for participant in self.participants:
+                self.room = msgobj.room
+                try:
+                    self.participants[self.room]
+                except KeyError:
+                    self.participants[self.room] = set()
+                for participant in self.participants[self.room]:
                     if participant.nick == self.nick:
                         print('auth@{0} fail: nick collision ({1})'.format(
                             self.ip, self.nick))
@@ -104,23 +111,27 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
                 print('auth@{} success'.format(self.ip))
                 self.auth = True
                 msg = msgobj.send()
-                self.broadcast(self.participants, msg)
+                self.broadcast(self.participants[self.room], msg)
                 #self.backlog.append(msg)
-                self.participants.add(self)
+                self.participants[self.room].add(self)
                 self.broadcast(self_set, Message().connectnotify())
 
         else:
             msgobj = Message(message=message, verifiednick=self.nick)
+            try:
+                self.backlog[self.room]
+            except KeyError:
+                self.backlog[self.room] = deque(maxlen=30)
             if msgobj.type == 'chat':
                 msg = msgobj.send()
-                self.broadcast(self.participants, msg)
-                self.backlog.append(msg)
+                self.broadcast(self.participants[self.room], msg)
+                self.backlog[self.room].append(msg)
             elif msgobj.type == 'control':
                 if msgobj.action == 'getroster':
-                    roster = [participant.nick for participant in self.participants]
+                    roster = [participant.nick for participant in self.participants[self.room]]
                     self.broadcast(self_set, Message().sendroster(roster))
                 if msgobj.action == 'getbacklog':
-                    for msg in self.backlog:
+                    for msg in self.backlog[self.room]:
                         self.broadcast(self_set, msg)
             else:
                 self.broadcast(self_set, 'not a valid message')
@@ -128,9 +139,9 @@ class ChatConnection(sockjs.tornado.SockJSConnection):
     def on_close(self):
         """"""
         try:
-            self.participants.remove(self)
+            self.participants[self.room].remove(self)
             msg = Message(verifiednick=self.nick).partnotify()
-            self.broadcast(self.participants, msg)
+            self.broadcast(self.participants[self.room], msg)
             #self.backlog.append(msg)
         except KeyError:
             pass

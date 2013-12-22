@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>#siika</title>
+  <title>miika.es chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/>
   <style type="text/css">
     body {
@@ -24,7 +24,7 @@
       left: 0;
       bottom: 1;
       word-wrap: break-word;
-      overflow:auto;
+      overflow: auto;
       border: 1px solid black;
     }
     #roster {
@@ -56,18 +56,19 @@
       "'": '&#39;',
       "/": '&#x2F;'
     }
+    var matchlink = /((^https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
     function escapeHtml(string) {
       var escaped = [];
       var words = string.split(' ');
       words.forEach(function(word){
-        if (/((^https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig.test(word)) {
-          escaped.push(word.replace(/((https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig,
-            '<a href="$1" target="_blank" class="link">$1</a>'));
+        if (matchlink.test(word)) {
+          escaped.push(word.replace(matchlink, '<a href="$1" target="_blank" class="link">$1</a>'));
         }
         else if (document.getElementById('escapehtml').checked) {
-          escaped.push(String(word).replace(/[&<>"'\/]/g, function (s) {
-            return entityMap[s];
-          }));
+          escaped.push(String(word).replace(
+            /[&<>"'\/]/g,
+            function (s) {return entityMap[s]} // js pls
+          ));
         }
         else {
           escaped.push(word);
@@ -83,15 +84,12 @@
       var conn = null;
 
       function log(msg) {
-        var control = $('#log');
-        control.html(control.html() + '<pre>'+msg+'</pre>');
-        control.scrollTop($('#log')[0].scrollHeight);
+        $('#log').append('<pre>'+msg+'</pre>');
+        $('#log').scrollTop($('#log')[0].scrollHeight);
       }
 
       function roster(msg) {
-        var control = $('#roster');
-        control.html(msg);
-        control.scrollTop(control.scrollTop() + 1000);
+        $('#roster').html(msg);
       }
 
       function connect() {
@@ -102,9 +100,10 @@
         log('Connecting...');
 
         conn.onopen = function() {
+          room = $('#room').val();
           nick = $('#nick').val();
           passwd = $('#passwd').val();
-          conn.send('{"nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
+          conn.send('{"room": "'+room+'", "nick": "'+nick+'","passwd": "'+passwd+'", "action": "join"}');
           if (document.getElementById('getbacklog').checked) {
             conn.send('{"action": "getbacklog"}');
           }
@@ -114,8 +113,10 @@
 
         conn.onmessage = function(e) {
           var recv = jQuery.parseJSON(e.data);
-          if (recv['connected'] == true)
+          if (recv['connected'] == true) {
             log('Connected.');
+            document.title = '#'+room;
+          }
           else if (recv['time'] && recv['nick'] && recv['body']){
             var timestamp = recv['time'];
             var timestring = new Date(timestamp*1000).toLocaleTimeString() + ' ';
@@ -152,12 +153,13 @@
               nickcolors[recv['roster'][nickidx]]+';">'+
               escapeHtml(recv['roster'][nickidx])+'</span><br>';
             }
-            roster('<pre><span id="participants">participants:</span><br>'+participants+'</pre>');
+            roster('<pre><span id="participants">#'+room+' participants:</span><br>'+participants+'</pre>');
           }
         }
 
         conn.onclose = function() {
           log('Disconnected.');
+          document.title = 'miika.es chat';
           conn = null;
           roster('');
           update_ui();
@@ -214,6 +216,7 @@
     get backlog?
     <input type="checkbox" id="getbacklog" checked>
     <form id="login">
+      <input id="room" type="text" placeholder="room ('example')" />
       <input id="nick" type="text" placeholder="nick" />
       <input id="passwd" type="password" placeholder="pw ('testing' TFN)" />
       <input id="butt" type="submit" value="→">
